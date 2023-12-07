@@ -9,19 +9,19 @@ def capture_by_frames():
     camera = cv2.VideoCapture(0)
 
     # # Load a sample picture and learn how to recognize it.
-    obama_image = face_recognition.load_image_file("testmycode/obama.jpg")
+    obama_image = face_recognition.load_image_file("FaceID/FaceID-Frontend/gracefrontend/images/obama.jpg")
     obama_face_encoding = face_recognition.face_encodings(obama_image)[0]
 
     # Load a second sample picture and learn how to recognize it.
-    biden_image = face_recognition.load_image_file("testmycode/biden.jpg")
+    biden_image = face_recognition.load_image_file("FaceID/FaceID-Frontend/gracefrontend/images/biden.jpg")
     biden_face_encoding = face_recognition.face_encodings(biden_image)[0]
 
     # Load a sample picture and learn how to recognize it.
-    gabor_image = face_recognition.load_image_file("testmycode/drgabor1.jpeg")
+    gabor_image = face_recognition.load_image_file("FaceID/FaceID-Frontend/gracefrontend/images/drgabor1.jpeg")
     gabor_face_encoding = face_recognition.face_encodings(gabor_image)[0]
 
     # Load a sample picture and learn how to recognize it.
-    me_image = face_recognition.load_image_file("testmycode/me.png")
+    me_image = face_recognition.load_image_file("FaceID/FaceID-Frontend/gracefrontend/images/me.png")
     me_face_encoding = face_recognition.face_encodings(me_image)[0]
 
     # Create arrays of known face encodings and their names
