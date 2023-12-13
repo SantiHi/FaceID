@@ -15,6 +15,8 @@ app=Flask(__name__)
 
 detected_persons = [] # list of names who were EVER detected in the frame. 
 
+frames_det_in_row = {} # dictionary of names, and the number of frames they were detected in a row. 
+
 def filePaths(directory):
     files = []
     for dirpath,_,filenames in os.walk(directory):
@@ -34,6 +36,8 @@ with open('train_labels.npy', 'rb') as f:
     y = np.load(f)
 
 labels = ['Abhisheik Sharma', 'Akash Wudali', 'Akshat Alok', 'Ashwin Pulla', 'Ayaan Siddiqui', 'Daniel Qiu', 'Darren Kao', 'Dev Kodre', 'Emi Zhang', 'Grace Liu', 'Jesse Choe', 'Krish Malik', 'Lucas Marschoun', 'Manav Gagvani', 'Matthew Palamarchuk', 'Mihika Dusad', 'Om Gole', 'Pranav Kuppa', 'Pranav Panicker', 'Pranav Vadde', 'Preston Brown', 'Raghav Sriram', 'Rohan Kalahasty', 'Samarth Bhargav', 'Santiago Criado', 'Shreyan Dey', 'Sritan Motati', 'Tanvi Pedireddy', 'Tejesh Dandu', 'Vishal Nandakumar']
+
+
 
 
 #YOLO CODE
@@ -80,8 +84,15 @@ def capture_by_frames():
             org = (b[i, 0], b[i, 1])
             name = names[i]
             for name in names:
-                if name not in detected_persons:
+                if name not in frames_det_in_row:
+                    frames_det_in_row[name] = 1
+                else:
+                    frames_det_in_row[name] += 1
+                if frames_det_in_row[name] >= 5 and name not in detected_persons:
                     detected_persons.append(name)
+                for name in detected_persons:
+                    if name not in names:
+                        frames_det_in_row[name] = 0
             annotated_frame = cv2.putText(frame, name, org, font, fontScale, color, thickness, cv2.LINE_AA) 
 
         # cv2.imshow("YOLOv8 Inference", annotated_frame)
