@@ -13,6 +13,7 @@ import pickle
 from keras_facenet import FaceNet
 app=Flask(__name__)
 
+detected_persons = [] # list of names who were EVER detected in the frame. 
 
 def filePaths(directory):
     files = []
@@ -69,9 +70,8 @@ def capture_by_frames():
         for res in embedding_results:
             face_distances = face_recognition.face_distance(X, res)
             y_pred.append(y[np.argmin(face_distances)])
-        
-        names = [labels[i] for i in y_pred]
 
+        names = [labels[i] for i in y_pred]
         font = cv2.FONT_HERSHEY_SIMPLEX
         fontScale = 0.5
         color = (255, 0, 0) 
@@ -79,6 +79,9 @@ def capture_by_frames():
         for i in range(len(names)):
             org = (b[i, 0], b[i, 1])
             name = names[i]
+            for name in names:
+                if name not in detected_persons:
+                    detected_persons.append(name)
             annotated_frame = cv2.putText(frame, name, org, font, fontScale, color, thickness, cv2.LINE_AA) 
 
         # cv2.imshow("YOLOv8 Inference", annotated_frame)
@@ -104,7 +107,7 @@ def start():
 def stop():
     if camera.isOpened():
         camera.release()
-    return render_template('stop.html')
+    return render_template('stop.html', detected_persons=detected_persons)
 
 @app.route('/video_capture')
 def video_capture():
