@@ -2,103 +2,91 @@ from flask import Flask, render_template, Response
 import face_recognition
 import cv2
 import numpy as np
+from ultralytics import YOLO
+import pandas as pd
+import os
+from matplotlib import pyplot as plt
+from sklearn.svm import SVC
+from sklearn.decomposition import PCA
+from sklearn import metrics
+import pickle
+from keras_facenet import FaceNet
 app=Flask(__name__)
 
+
+def filePaths(directory):
+    files = []
+    for dirpath,_,filenames in os.walk(directory):
+        for f in filenames:
+            files.append(os.path.join(dirpath, f))
+    return files
+
+def one_hot(array):
+    unique, inverse = np.unique(array, return_inverse=True)
+    onehot = np.eye(unique.shape[0])[inverse]
+    return onehot
+
+with open('embeds.npy', 'rb') as f:
+    X = np.load(f)
+
+with open('train_labels.npy', 'rb') as f:
+    y = np.load(f)
+
+labels = ['Abhisheik Sharma', 'Akash Wudali', 'Akshat Alok', 'Ashwin Pulla', 'Ayaan Siddiqui', 'Daniel Qiu', 'Darren Kao', 'Dev Kodre', 'Emi Zhang', 'Grace Liu', 'Jesse Choe', 'Krish Malik', 'Lucas Marschoun', 'Manav Gagvani', 'Matthew Palamarchuk', 'Mihika Dusad', 'Om Gole', 'Pranav Kuppa', 'Pranav Panicker', 'Pranav Vadde', 'Preston Brown', 'Raghav Sriram', 'Rohan Kalahasty', 'Samarth Bhargav', 'Santiago Criado', 'Shreyan Dey', 'Sritan Motati', 'Tanvi Pedireddy', 'Tejesh Dandu', 'Vishal Nandakumar']
+
+
+#YOLO CODE
 def capture_by_frames(): 
+    model = YOLO('best.pt')
+    embedder = FaceNet()
     global camera
     camera = cv2.VideoCapture(0)
-    # # Load a sample picture and learn how to recognize it.
-    obama_image = face_recognition.load_image_file("./images/obama.jpg")
-    obama_face_encoding = face_recognition.face_encodings(obama_image)[0]
 
-    # Load a second sample picture and learn how to recognize it.
-    biden_image = face_recognition.load_image_file("./images/biden.jpg")
-    biden_face_encoding = face_recognition.face_encodings(biden_image)[0]
-
-    # Load a sample picture and learn how to recognize it.
-    gabor_image = face_recognition.load_image_file("./images/drgabor1.jpeg")
-    gabor_face_encoding = face_recognition.face_encodings(gabor_image)[0]
-
-    # Load a sample picture and learn how to recognize it.
-    me_image = face_recognition.load_image_file("./images/me.png")
-    me_face_encoding = face_recognition.face_encodings(me_image)[0]
-    # Create arrays of known face encodings and their names
-    known_face_encodings = [
-        obama_face_encoding,
-        biden_face_encoding,
-        gabor_face_encoding,
-        me_face_encoding
-    ]
-    known_face_names = [
-        "Barack Obama",
-        "Joe Biden",
-        "Peter Gabor",
-        "Grace Liu"
-    ]
-
-    # Initialize some variables
-    face_locations = []
-    face_encodings = []
-    face_names = []
-    process_this_frame = True
     while True:
+        success, frame = camera.read()
 
-        ret, frame = camera.read()
+        if not success: continue
 
-        # Only process every other frame of video to save time
-        if process_this_frame:
-            # Resize frame of video to 1/4 size for faster face recognition processing
-            small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+        results = model(frame)
+        coords = results[0].boxes.xyxy.numpy()
 
-            # Convert the image from BGR color (which OpenCV uses) to RGB color (which face_recognition uses)
-            # rgb_small_frame = small_frame[:, :, ::-1]
-            rgb_small_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
-            
-            # Find all the faces and face encodings in the current frame of video
-            face_locations = face_recognition.face_locations(rgb_small_frame)
-            face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
+        if results[0].boxes.xyxy.nelement() == 0: 
+            ret, buffer = cv2.imencode('.jpg', frame)
+            frame = buffer.tobytes()
+            yield (b'--frame\r\n'
+                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+            continue
 
-            face_names = []
-            for face_encoding in face_encodings:
-                # See if the face is a match for the known face(s)
-                matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
-                name = "Unknown"
+        if coords.any() == None: continue
+        
+        b = np.array([coords[i].astype(int) for i in range(coords.shape[0])])
 
-                # If a match was found in known_face_encodings, just use the first one.
-                # if True in matches:
-                #     first_match_index = matches.index(True)
-                #     name = known_face_names[first_match_index]
+        face_images = np.array([cv2.resize(frame[i[1]:i[3], i[0]:i[2]], (64, 64)) for i in b])
+        embedding_results = embedder.embeddings(face_images)
 
-                # Or instead, use the known face with the smallest distance to the new face
-                face_distances = face_recognition.face_distance(known_face_encodings, face_encoding)
-                best_match_index = np.argmin(face_distances)
-                if matches[best_match_index]:
-                    name = known_face_names[best_match_index]
 
-                face_names.append(name)
+        y_pred = []
+        for res in embedding_results:
+            face_distances = face_recognition.face_distance(X, res)
+            y_pred.append(y[np.argmin(face_distances)])
+        
+        names = [labels[i] for i in y_pred]
 
-        process_this_frame = not process_this_frame
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        fontScale = 0.5
+        color = (255, 0, 0) 
+        thickness = 1
+        for i in range(len(names)):
+            org = (b[i, 0], b[i, 1])
+            name = names[i]
+            annotated_frame = cv2.putText(frame, name, org, font, fontScale, color, thickness, cv2.LINE_AA) 
 
-        # Display the results
-        for (top, right, bottom, left), name in zip(face_locations, face_names):
-            # Scale back up face locations since the frame we detected in was scaled to 1/4 size
-            top *= 4
-            right *= 4
-            bottom *= 4
-            left *= 4
+        # cv2.imshow("YOLOv8 Inference", annotated_frame)
 
-            # Draw a box around the face
-            cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
-
-            # Draw a label with a name below the face
-            cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (0, 0, 255), cv2.FILLED)
-            font = cv2.FONT_HERSHEY_DUPLEX
-            cv2.putText(frame, name, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
-
-            # print(name)
+        # if cv2.waitKey(1) & 0xFF == ord("q"):
+        #     break
 
         # Display the resulting image
-        # cv2.imshow('Video', frame)
         ret, buffer = cv2.imencode('.jpg', frame)
         frame = buffer.tobytes()
         yield (b'--frame\r\n'
