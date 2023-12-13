@@ -83,16 +83,16 @@ def capture_by_frames():
         for i in range(len(names)):
             org = (b[i, 0], b[i, 1])
             name = names[i]
-            for name in names:
-                if name not in frames_det_in_row:
-                    frames_det_in_row[name] = 1
+            for n in names:
+                if n not in frames_det_in_row:
+                    frames_det_in_row[n] = 1
                 else:
-                    frames_det_in_row[name] += 1
-                if frames_det_in_row[name] >= 5 and name not in detected_persons:
-                    detected_persons.append(name)
-                for name in detected_persons:
-                    if name not in names:
-                        frames_det_in_row[name] = 0
+                    frames_det_in_row[n] += 1
+                if frames_det_in_row[n] >= 5 and n not in detected_persons:
+                    detected_persons.append(n)
+                for n2 in detected_persons:
+                    if n2 not in names:
+                        frames_det_in_row[n2] = 0
             annotated_frame = cv2.putText(frame, name, org, font, fontScale, color, thickness, cv2.LINE_AA) 
 
         # cv2.imshow("YOLOv8 Inference", annotated_frame)
