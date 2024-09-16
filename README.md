@@ -1,4 +1,4 @@
-# Face ID Attendance Project 
+# Face ID Attendance Taker
 
 ## Description
 
